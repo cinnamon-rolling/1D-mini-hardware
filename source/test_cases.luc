@@ -1,0 +1,412 @@
+module test_cases (
+    input clk,  // clock
+    input rst,  // reset
+    
+    // inputs from dip switches
+    input s_dip,
+    input cout_dip,
+    
+    // inputs from strip board
+    input s_circuit,
+    input cout_circuit,
+    
+    // outputs to strip board
+    output a,
+    output b,
+    output cin,
+    
+    // led outputs
+    output led_expected[8],
+    output led_result[8],
+    output led_case[8],
+    
+    // mode of dip switch
+    input mode_dip,
+    input condition_dip,
+    input io_button[5]
+    
+  ) 
+ 
+{
+    .clk(clk), .rst(rst) {
+    dff counter[28];     // time taken for each cycle is 2^28/50E6
+    fsm state = {ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT};
+    fsm mode = {AUTO, MANUAL};
+    fsm condition = {DIP, CIRCUIT};
+    dff s[1]; // 1 bit wide sum
+    dff cout[1]; // 1 bit wide carry out
+
+  }
+  
+
+  always {
+    // initialise
+    counter.d = counter.q + 1; // connects dff's input to output + 1. everytime clk goes to high, d = q + 1
+    led_expected = 0;
+    led_case = 0;
+    led_result = 0;
+    a = 0;
+    b = 0;
+    cin = 0;
+    
+    s.d = s_circuit;
+    cout.d = cout_circuit;
+    
+    // modes for dip swtches
+    case (mode_dip) {
+    0: mode.d = mode.AUTO;
+    1 : mode.d = mode.MANUAL;
+    }
+    
+    // modes for changing condition, either input from circuit or dip switches
+    case (condition_dip) {
+    0: condition.d = condition.CIRCUIT;
+    1 : condition.d = condition.DIP;
+    }
+    
+    // input cases for s and cout
+    case (condition.q) {
+    condition.DIP:
+      s.d = s_dip;
+      cout.d = cout_dip;
+    condition.CIRCUIT: 
+      s.d = s_circuit;
+      cout.d = cout_circuit;
+    }
+    
+    case (mode.q) {
+      mode.AUTO:
+      
+    case (state.q) {
+      state.ONE: // 0 0 0 | 0 0
+        led_expected = 8b00000000;
+        led_case = 8b10000000; // show led[0] light up at case 1
+        
+        a = 0;
+        b = 0;
+        cin = 0;
+        
+        if (s.q == 0 && cout.q == 0){
+          led_result = 8b10000000;        
+          if (counter.q[27] == 1){
+          state.d = state.TWO;
+          }
+    }
+      state.TWO: // 0 0 1 | 1 0
+        led_expected = 8b00100010;
+        led_case = 8b01000000; 
+        
+        a = 0;
+        b = 0;
+        cin = 1;
+        
+        if (s.q == 1 && cout.q == 0){
+          led_result = 8b01000000;        
+          if (counter.q[27] == 0){
+          state.d = state.THREE;
+          }
+        }
+            
+      state.THREE: // 0 1 0 | 1 0
+        led_expected = 8b01000010;
+        led_case = 8b00100000; 
+        
+        a = 0;
+        b = 1;
+        cin = 0;
+        
+        if (s.q == 1 && cout.q == 0){
+          led_result = 8b00100000;        
+          if (counter.q[27] == 1){
+          state.d = state.FOUR;
+          }
+        }
+      state.FOUR: // 0 1 1 | 0 1
+        led_expected = 8b01100001;
+        led_case = 8b00010000;
+        
+        a = 0;
+        b = 1;
+        cin = 1;
+        
+        if (s.q == 0 && cout.q == 1){
+          led_result = 8b00010000;        
+          if (counter.q[27] == 0){
+           state.d = state.FIVE;
+          }
+        }
+      state.FIVE: // 1 0 0 | 1 0
+        led_expected = 8b10000010;
+        led_case = 8b00001000;
+        
+        a = 1;
+        b = 0;
+        cin = 0;
+        
+        if (s.q == 1 && cout.q == 0){
+          led_result = 8b00001000;        
+          if (counter.q[27] == 1){
+           state.d = state.SIX;
+          }
+        }
+      state.SIX: // 1 0 1 | 0 1
+        led_expected = 8b10100001;
+        led_case = 8b00000100; 
+        
+        a = 1;
+        b = 0;
+        cin = 1;
+        
+        if (s.q == 0 && cout.q == 1){
+          led_result = 8b00000100;        
+          if (counter.q[27] == 0){
+           state.d = state.SEVEN;
+          }
+        }
+      state.SEVEN: // 1 1 0 | 0 1
+        led_expected = 8b11000001;
+        led_case = 8b00000010; 
+        
+        a = 1;
+        b = 1;
+        cin = 0;
+        
+        if (s.q == 0 && cout.q == 1){
+          led_result = 8b00000010;        
+          if (counter.q[27] == 1){
+           state.d = state.EIGHT;
+          }
+        }
+      state.EIGHT: // 1 1 1 | 1 1
+        led_expected = 8b11100011;
+        led_case = 8b00000001; 
+        
+        a = 1;
+        b = 1;
+        cin = 1;
+        
+        if (s.q == 1 && cout.q == 1){
+          led_result = 8b00000001;        
+          if (counter.q[27] == 0){
+           state.d = state.ONE;
+          }
+        }         
+        }
+        
+    mode.MANUAL: 
+    
+    case (state.q){
+      state.ONE: // 0 0 0 | 0 0
+      led_expected = 8b00000000;
+      led_case = 8b10000000; // show led[0] light up at case 1
+      
+      a = 0;
+      b = 0;
+      cin = 0;
+      
+      if (s.q == 0 && cout.q == 0){
+        led_result = 8b10000000; 
+      }
+                     
+      if (counter.q[27] == 1){
+         if (io_button[4] == 1){
+          state.d = state.TWO;
+         }
+         else if (io_button[3] == 1){
+           state.d = state.EIGHT;
+         }
+         else if (io_button[0] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[2] == 1){
+           state.d = state.EIGHT;
+         }
+      }
+
+      state.TWO: // 0 0 1 | 1 0
+      led_expected = 8b00100010;
+      led_case = 8b01000000;
+      
+      a = 0;
+      b = 0;
+      cin = 1;
+      
+      if (s.q == 1 && cout.q == 0){
+        led_result = 8b01000000; 
+      }
+                     
+      if (counter.q[27] == 0){
+         if (io_button[4] == 1){
+          state.d = state.THREE;
+         }
+         else if (io_button[3] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[0] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[2] == 1){
+           state.d = state.EIGHT;
+        }
+        
+     }
+      state.THREE: // 0 1 0 | 1 0
+      led_expected = 8b01000010;
+      led_case = 8b00100000; // show led[0] light up at case 1
+      
+      a = 0;
+      b = 1;
+      cin = 0;
+      
+      if (s.q == 1 && cout.q == 0){
+        led_result = 8b00100000; 
+      }
+                     
+      if (counter.q[27] == 1){
+         if (io_button[4] == 1){
+          state.d = state.FOUR;
+         }
+         else if (io_button[3] == 1){
+           state.d = state.TWO;
+         }
+         else if (io_button[0] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[2] == 1){
+           state.d = state.EIGHT;
+        }
+          }
+      state.FOUR: // 0 1 1 | 0 1
+      led_expected = 8b01100001;
+      led_case = 8b00010000;
+      
+      a = 0;
+      b = 1;
+      cin = 1;
+      
+      if (s.q == 0 && cout.q == 1){
+        led_result = 8b00010000; 
+      }
+                     
+      if (counter.q[27] == 0){
+         if (io_button[4] == 1){
+          state.d = state.FIVE;
+         }
+         else if (io_button[3] == 1){
+           state.d = state.THREE;
+         }
+         else if (io_button[0] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[2] == 1){
+           state.d = state.EIGHT;
+        }
+          }
+      state.FIVE: // 1 0 0 | 1 0
+      led_expected = 8b10000010;
+      led_case = 8b00001000;
+      
+      a = 1;
+      b = 0;
+      cin = 0;
+      
+      if (s.q == 1 && cout.q == 0){
+        led_result = 8b00001000; 
+      }
+                     
+      if (counter.q[27] == 1){
+         if (io_button[4] == 1){
+          state.d = state.SIX;
+         }
+         else if (io_button[3] == 1){
+           state.d = state.FOUR;
+         }
+         else if (io_button[0] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[2] == 1){
+           state.d = state.EIGHT;
+        }
+          }
+      state.SIX: // 1 0 1 | 0 1
+      led_expected = 8b1010001;
+      led_case = 8b00000100;
+      
+      a = 1;
+      b = 0;
+      cin = 1;
+      
+      if (s.q == 0 && cout.q == 1){
+        led_result = 8b00000100; 
+      }
+                     
+      if (counter.q[27] == 0){
+         if (io_button[4] == 1){
+          state.d = state.SEVEN;
+         }
+         else if (io_button[3] == 1){
+           state.d = state.FIVE;
+         }
+         else if (io_button[0] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[2] == 1){
+           state.d = state.EIGHT;
+        }
+          }
+      state.SEVEN: // 1 1 0 | 0 1
+      led_expected = 8b11000001;
+      led_case = 8b00000010;
+      
+      a = 1;
+      b = 1;
+      cin = 0;
+      
+      if (s.q == 0 && cout.q == 1){
+        led_result = 8b00000010; 
+      }
+                     
+      if (counter.q[27] == 1){
+         if (io_button[4] == 1){
+          state.d = state.EIGHT;
+         }
+         else if (io_button[3] == 1){
+           state.d = state.SIX;
+         }
+         else if (io_button[0] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[2] == 1){
+           state.d = state.EIGHT;
+        }
+          }  
+      state.EIGHT: // 1 1 1 | 1 1
+      led_expected = 8b11100011;
+      led_case = 8b00000001;
+      
+      a = 1;
+      b = 1;
+      cin = 1;
+      
+      if (s.q == 1 && cout.q == 1){
+        led_result = 8b00000001; 
+      }
+                     
+      if (counter.q[27] == 0){
+         if (io_button[4] == 1){
+          state.d = state.ONE;
+         }
+         else if (io_button[3] == 1){
+           state.d = state.SEVEN;
+         }
+         else if (io_button[0] == 1){
+           state.d = state.ONE;
+         }
+         else if (io_button[2] == 1){
+           state.d = state.EIGHT;
+        }
+          }       
+       }
+    }
+  }
+ }
